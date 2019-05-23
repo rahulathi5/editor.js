@@ -2,7 +2,7 @@ import SelectionUtils from '../selection';
 
 import $ from '../dom';
 import _ from '../utils';
-import {API, InlineTool, SanitizerConfig} from '../../../types';
+import {API, InlineTool, SanitizerConfig, ToolConfig} from '../../../types';
 import {Notifier, Toolbar} from '../../../types/api';
 
 /**
@@ -13,13 +13,6 @@ import {Notifier, Toolbar} from '../../../types/api';
  * Wrap selected text with <a> tag
  */
 export default class LinkInlineTool implements InlineTool {
-
-  /**
-   * Specifies Tool as Inline Toolbar Tool
-   *
-   * @return {boolean}
-   */
-  public static isInline = true;
 
   /**
    * Sanitizer Rule
@@ -35,6 +28,20 @@ export default class LinkInlineTool implements InlineTool {
       },
     } as SanitizerConfig;
   }
+
+  /**
+   * Set a shortcut
+   */
+  public get shortcut(): string {
+    return 'CMD+K';
+  }
+
+  /**
+   * Specifies Tool as Inline Toolbar Tool
+   *
+   * @return {boolean}
+   */
+  public static isInline = true;
 
   /**
    * Native Document's commands for link/unlink
@@ -57,7 +64,26 @@ export default class LinkInlineTool implements InlineTool {
     buttonUnlink: 'ce-inline-tool--unlink',
     input: 'ce-inline-tool-input',
     inputShowed: 'ce-inline-tool-input--showed',
+    header: 'ce-inline-tool-header',
+    div: 'ce-inline-tool-div',
+    divShowed: 'ce-inline-tool-div--showed',
   };
+
+  private readonly pageLinks = [{
+    name: 'Google',
+    url: 'https://www.google.com',
+  }, {
+    name: 'Facebook',
+    url: 'https://www.facebook.com',
+  }, {
+    name: 'Twitter',
+    url: 'https://twitter.com',
+  }, {
+    name: 'Instagram',
+    url: 'https://www.instagram.com/',
+  }];
+
+  private linkElements = [];
 
   /**
    * Elements
@@ -65,9 +91,17 @@ export default class LinkInlineTool implements InlineTool {
   private nodes: {
     button: HTMLButtonElement;
     input: HTMLInputElement;
+    header: HTMLHeadElement;
+    div: HTMLDivElement;
+    searchInput: HTMLInputElement;
+    ul: HTMLUListElement
   } = {
     button: null,
     input: null,
+    header: null,
+    div: null,
+    searchInput: null,
+    ul: null,
   };
 
   /**
@@ -98,7 +132,8 @@ export default class LinkInlineTool implements InlineTool {
   /**
    * @param {{api: API}} - Editor.js API
    */
-  constructor({api}) {
+  constructor({api, config}) {
+    console.log(api, config);
     this.toolbar = api.toolbar;
     this.inlineToolbar = api.inlineToolbar;
     this.notifier = api.notifier;
@@ -121,15 +156,53 @@ export default class LinkInlineTool implements InlineTool {
    * Input for the link
    */
   public renderActions(): HTMLElement {
+    // console.log(window.localStorage.data);
+    this.nodes.div = document.createElement('div') as HTMLDivElement;
+
+    this.nodes.header = document.createElement('h6') as HTMLHeadElement;
+    this.nodes.header.appendChild(document.createTextNode('Link to Existing Page'));
+
+    this.nodes.ul = document.createElement('ul') as HTMLUListElement;
+    this.nodes.ul.setAttribute('class', 'existing-list');
+
+    this.nodes.searchInput = document.createElement('input') as HTMLInputElement;
+    this.nodes.searchInput.placeholder = 'Search Pages..';
+    this.nodes.searchInput.setAttribute('class', 'search-input');
+    this.nodes.searchInput.addEventListener('keyup', (event: KeyboardEvent) => {
+      console.log(this.nodes.searchInput.value);
+      if (this.nodes.searchInput.value.trim().length) {
+        const filtertedList = this.pageLinks.filter((each) => {
+          return each.name.toLocaleLowerCase().includes(this.nodes.searchInput.value.trim());
+        });
+        this.renderList(filtertedList);
+      } else {
+        this.renderList(this.pageLinks);
+      }
+
+    });
+
+    this.renderList(this.pageLinks);
+
     this.nodes.input = document.createElement('input') as HTMLInputElement;
-    this.nodes.input.placeholder = 'Add a link';
+    this.nodes.input.placeholder = 'Add External URL..';
+
+    this.nodes.div.classList.add(this.CSS.div);
+    this.nodes.header.classList.add(this.CSS.header);
     this.nodes.input.classList.add(this.CSS.input);
+
     this.nodes.input.addEventListener('keydown', (event: KeyboardEvent) => {
       if (event.keyCode === this.ENTER_KEY) {
-        this.enterPressed(event);
+        this.enterPressed(event, false, '');
       }
     });
-    return this.nodes.input;
+
+    this.nodes.div.appendChild(this.nodes.header);
+    this.nodes.div.appendChild(this.nodes.searchInput);
+    this.nodes.div.appendChild(this.nodes.ul);
+    this.nodes.div.appendChild(this.nodes.input);
+
+    console.log('node: ', this.nodes);
+    return this.nodes.div;
   }
 
   /**
@@ -175,6 +248,9 @@ export default class LinkInlineTool implements InlineTool {
    * @param {Selection} selection
    */
   public checkState(selection?: Selection): boolean {
+    console.log('check state here');
+    this.nodes.searchInput.value = '';
+    this.renderList(this.pageLinks);
     const anchorTag = this.selection.findParentTag('A');
 
     if (anchorTag) {
@@ -187,11 +263,28 @@ export default class LinkInlineTool implements InlineTool {
        */
       const hrefAttr = anchorTag.getAttribute('href');
       this.nodes.input.value = hrefAttr !== 'null' ? hrefAttr : '';
+      if (hrefAttr !== 'null') {
+        this.pageLinks.forEach((page, index) => {
+          if (page.url === hrefAttr) {
+            this.linkElements[index].classList.add('selected-item');
+          } else {
+            this.linkElements[index].classList.remove('selected-item');
+          }
+        });
+      } else {
+        this.linkElements.forEach((item) => {
+          item.classList.remove('selected-item');
+        });
+      }
 
       this.selection.save();
     } else {
       this.nodes.button.classList.remove(this.CSS.buttonUnlink);
       this.nodes.button.classList.remove(this.CSS.buttonActive);
+
+      this.linkElements.forEach((item) => {
+        item.classList.remove('selected-item');
+      });
     }
 
     return !!anchorTag;
@@ -204,11 +297,22 @@ export default class LinkInlineTool implements InlineTool {
     this.closeActions();
   }
 
-  /**
-   * Set a shortcut
-   */
-  public get shortcut(): string {
-    return 'CMD+K';
+  public renderList(list) {
+    while (this.nodes.ul.firstChild) {
+      this.nodes.ul.removeChild(this.nodes.ul.firstChild);
+    }
+    this.linkElements = [];
+    list.forEach((each) => {
+      const li = document.createElement('li');
+      li.setAttribute('class', 'existing-list-item');
+      li.innerHTML = li.innerHTML + each.name;
+      li.addEventListener('click', (event) => {
+        console.log(each);
+        this.enterPressed(event, true, each.url);
+      });
+      this.nodes.ul.appendChild(li);
+      this.linkElements.push(li);
+    });
   }
 
   private toggleActions(): void {
@@ -223,6 +327,7 @@ export default class LinkInlineTool implements InlineTool {
    * @param {boolean} needFocus - on link creation we need to focus input. On editing - nope.
    */
   private openActions(needFocus: boolean = false): void {
+    this.nodes.div.classList.add(this.CSS.divShowed);
     this.nodes.input.classList.add(this.CSS.inputShowed);
     if (needFocus) {
       this.nodes.input.focus();
@@ -249,6 +354,7 @@ export default class LinkInlineTool implements InlineTool {
     }
 
     this.nodes.input.classList.remove(this.CSS.inputShowed);
+    this.nodes.div.classList.remove(this.CSS.divShowed);
     this.nodes.input.value = '';
     if (clearSavedSelection) {
       this.selection.clearSaved();
@@ -260,8 +366,13 @@ export default class LinkInlineTool implements InlineTool {
    * Enter pressed on input
    * @param {KeyboardEvent} event
    */
-  private enterPressed(event: KeyboardEvent): void {
-    let value = this.nodes.input.value || '';
+  private enterPressed(event, isExisting, data): void {
+    let value = '';
+    if (isExisting) {
+      value = data;
+    } else {
+      value = this.nodes.input.value || '';
+    }
 
     if (!value.trim()) {
       this.selection.restore();
