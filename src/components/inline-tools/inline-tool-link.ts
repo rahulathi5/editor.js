@@ -69,7 +69,7 @@ export default class LinkInlineTool implements InlineTool {
     divShowed: 'ce-inline-tool-div--showed',
   };
 
-  private readonly pageLinks = [{
+  private pageLinks = [{
     name: 'Google',
     url: 'https://www.google.com',
   }, {
@@ -156,7 +156,8 @@ export default class LinkInlineTool implements InlineTool {
    * Input for the link
    */
   public renderActions(): HTMLElement {
-    // console.log(window.localStorage.data);
+    console.log(JSON.parse(window.localStorage.existingLinks));
+    this.pageLinks = JSON.parse(window.localStorage.existingLinks);
     this.nodes.div = document.createElement('div') as HTMLDivElement;
 
     this.nodes.header = document.createElement('h6') as HTMLHeadElement;
