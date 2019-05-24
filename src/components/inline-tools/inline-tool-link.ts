@@ -69,19 +69,7 @@ export default class LinkInlineTool implements InlineTool {
     divShowed: 'ce-inline-tool-div--showed',
   };
 
-  private pageLinks = [{
-    name: 'Google',
-    url: 'https://www.google.com',
-  }, {
-    name: 'Facebook',
-    url: 'https://www.facebook.com',
-  }, {
-    name: 'Twitter',
-    url: 'https://twitter.com',
-  }, {
-    name: 'Instagram',
-    url: 'https://www.instagram.com/',
-  }];
+  private pageLinks = [];
 
   private linkElements = [];
 
