@@ -144,8 +144,8 @@ export default class LinkInlineTool implements InlineTool {
    * Input for the link
    */
   public renderActions(): HTMLElement {
-    console.log(JSON.parse(window.localStorage.existingLinks));
-    this.pageLinks = JSON.parse(window.localStorage.existingLinks);
+    // console.log(JSON.parse(window.localStorage.existingLinks));
+    this.pageLinks = window.localStorage.existingLinks ? JSON.parse(window.localStorage.existingLinks) : [];
     this.nodes.div = document.createElement('div') as HTMLDivElement;
 
     this.nodes.header = document.createElement('h6') as HTMLHeadElement;
